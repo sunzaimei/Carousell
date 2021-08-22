@@ -9,8 +9,8 @@ from model.dataset import CarouselDataset
 
 from model.trainer import Trainer
 import os
-from config import STEPS, LOG_DIR, class_no, input_width, input_length
-from config import class_mapping, checkpoint_dir
+from config_cat import STEPS, LOG_DIR, class_no, input_width, input_length
+from config_cat import class_mapping, checkpoint_dir
 
 dataset_loader = CarouselDataset(annotation_path='../data/train.csv')
 train_ds = dataset_loader.build(mode='train')

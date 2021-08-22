@@ -7,8 +7,6 @@ from tensorflow.python.keras.applications.inception_v3 import InceptionV3
 from tensorflow.python.keras.layers import GlobalAveragePooling2D, Dense, Conv2D, MaxPool2D, Flatten, Dropout
 from tensorflow.python.keras.models import Sequential
 
-from config import class_no
-
 
 class LeNet(tf.keras.Model, ABC):
     def __init__(self, *args, **kwargs):
@@ -34,7 +32,7 @@ class LeNet(tf.keras.Model, ABC):
 
 
 def lenet(is_training):
-    from config import input_width, input_height
+    from config_cat import input_width, input_height
     x = Input(shape=(input_height, input_width, 3))
     # x = tf.reshape(x, shape=[-1, input_height, input_width, 3])
     net = tf.keras.layers.Conv2D(32, 5, activation=tf.nn.relu)(x)
@@ -48,7 +46,7 @@ def lenet(is_training):
     return Model(x, net, name="lenet")
 
 def simpleNet():
-    from config import input_width, input_height
+    from config_cat import input_width, input_height
     model = Sequential()
     model.add(Conv2D(32, 3, padding="same", activation="relu", input_shape=(input_width, input_height, 3)))
     model.add(MaxPool2D())

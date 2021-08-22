@@ -1,11 +1,13 @@
 import os
 
+from model.dataset import CatDataset
+
 BATCH = 32  # 128
 STEPS = 3000
-# LEARNING_RATE = 0.0001
 DATASET_DIR = '../images/train'
-EVAL_DIR = '../images/eval-category'
+EVAL_DIR = 'images/eval-category'
 LOG_DIR = '../weights'
+lable_column = "category_id"
 class_no = 12
 input_width = 320
 input_height = 320
@@ -24,3 +26,5 @@ class_mapping = {
     10: "Webcams",
     11: "Laptop Bags & Sleeves",
     12: "Printers, Scanners & Copiers"}
+dataset_loader = CatDataset(input_width, input_height, DATASET_DIR, annotation_path='../data/train.csv',
+                            lable_column=lable_column, class_mapping=class_mapping)

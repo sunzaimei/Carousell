@@ -1,9 +1,8 @@
 import numpy as np
-from sklearn.metrics import classification_report, confusion_matrix, f1_score
+from sklearn.metrics import classification_report, confusion_matrix, f1_score, mean_absolute_error
 
 
-class CarousellEvaluation:
-
+class CatEvaluation:
     def __init__(self, num_classes, class_mapping):
         if num_classes < 1:
             raise ValueError('Need at least 1 groundtruth class for evaluation.')
@@ -14,11 +13,10 @@ class CarousellEvaluation:
 
     def add_single_result(self, gt_class_ids, pred_class_ids):
         """
-        Adds the ground truth info for the image
+        Adds the ground truth and prediction info for the image
 
-        :param np.ndarray gt_class_ids:   int32 numpy array of shape [num_boxes] containing the class ids for each TL
-        :param np.ndarray gt_boxes:       int32 numpy array of shape [num_boxes, (y_min, x_min, y_max, x_max)]
-                                          containing the bounding boxes for each TL
+        :param np.ndarray gt_class_ids:   int32 numpy array of shape [num_class] containing the class ids for each image
+        :param np.ndarray pred_class_ids:   int32 numpy array of shape [num_class] containing the class ids for each image
         """
         self.gt_class_ids = np.append(self.gt_class_ids, gt_class_ids, axis=0)
         self.pred_class_ids = np.append(self.pred_class_ids, pred_class_ids, axis=0)
@@ -42,15 +40,20 @@ class CarousellEvaluation:
         print(confusion_result)
         return f1_score(self.gt_class_ids, self.pred_class_ids, average='micro')
 
-    # recall = tf.keras.metrics.Recall(class_id=[0, 12])(labels, predictions)
-    # recall_value = recall.result()
-    # precision = tf.keras.metrics.Precision()
-    # precision.update_state(labels, predictions)
-    # precision_value = precision.result()
-    # f1 = 2 * (recall_value * precision_value) / (recall_value + precision_value)
-    # tf.print("recall", recall_value, "precision", precision_value)
-    # tf.print("f1", f1)
-    # for k in range(12):
-    #     recall[k] = tf.keras.metrics.Recall()(
-    #         labels=tf.equal(labels, k),
-    #         predictions=tf.equal(predictions, k)).result()
+
+class PriceEvaluation:
+
+    def __init__(self):
+        self.gt_price = np.empty(shape=(0,), dtype=np.float32)
+        self.pred_price = np.empty(shape=(0,), dtype=np.float32)
+
+    def add_single_result(self, gt_price, pred_price):
+        self.gt_price = np.append(self.gt_price, gt_price, axis=0)
+        self.pred_price = np.append(self.pred_price, pred_price, axis=0)
+
+    def evaluate(self):
+        """
+        Returns:
+            The mean_absolute_error
+        """
+        return mean_absolute_error(self.gt_price, self.pred_price)

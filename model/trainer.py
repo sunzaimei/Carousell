@@ -9,8 +9,7 @@ from sklearn.metrics import classification_report, confusion_matrix, f1_score
 from tensorflow.python.keras.backend import categorical_crossentropy
 from tensorflow.python.keras.optimizer_v2.learning_rate_schedule import PiecewiseConstantDecay
 
-from config import class_mapping
-from model.evaluation import CarousellEvaluation
+from model.evaluation import CatEvaluation, PriceEvaluation
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)
 
@@ -37,19 +36,18 @@ class Trainer:
                  model,
                  loss=tf.keras.losses.SparseCategoricalCrossentropy(),
                  learning_rate=PiecewiseConstantDecay(boundaries=[200000], values=[1e-4, 5e-5]),
-                 checkpoint_dir='',
-                 class_mapping={}):
+                 checkpoint_dir='', class_mapping={}, metrics_name='f1'):
 
         self.now = None
         self.loss = loss
         self.checkpoint_dir = checkpoint_dir
-        self.checkpoint = tf.train.Checkpoint(step=tf.Variable(0), f1_score=tf.Variable(-1.0),
+        self.checkpoint = tf.train.Checkpoint(step=tf.Variable(0), score=tf.Variable(-1.0),
                                               optimizer=Adam(learning_rate=learning_rate), model=model)
         self.checkpoint_manager = tf.train.CheckpointManager(checkpoint=self.checkpoint,
                                                              directory=checkpoint_dir,
                                                              max_to_keep=5)
         self.class_mapping = class_mapping
-
+        self.metrics_name = metrics_name
         self.restore()
         train_log_dir = os.path.join(checkpoint_dir, 'gradient_tape/train')
         eval_log_dir = os.path.join(checkpoint_dir, 'gradient_tape/eval')
@@ -90,23 +88,23 @@ class Trainer:
                 print(f'Epoch {int(step / 106)}/{int(steps / 106)} - {step}/{steps}: loss = {loss_value:.6f}')
             if step % evaluate_every == 0:
                 # Compute metrics on validation dataset
-                f1, runtime_value = self.evaluate(valid_dataset)
-                f1_train, runtime_value_train = self.evaluate(train_dataset.take(100))
-                print(f'f1_score_train ={f1_train:3f}, f1_score = {f1:3f} ({duration:.2f}s), '
+                score, runtime_value = self.evaluate(valid_dataset)
+                score_train, runtime_value_train = self.evaluate(train_dataset.take(100))
+                print(f'{self.metrics_name}_train ={score_train:3f}, {self.metrics_name} = {score:3f} ({duration:.2f}s), '
                       f'runtime_value = {runtime_value:3f}')
 
                 with self.train_summary_writer.as_default():
-                    tf.summary.scalar('f1_train', f1_train, step=step / 106)
+                    tf.summary.scalar(self.metrics_name, score_train, step=step / 106)
                 with self.eval_summary_writer.as_default():
-                    tf.summary.scalar('f1', f1, step=step/106)
+                    tf.summary.scalar(self.metrics_name, score, step=step/106)
                     tf.summary.scalar('runtime', runtime_value, step=step/106)
 
-                if save_best_only and f1 <= ckpt.f1_score:
+                if save_best_only and score <= ckpt.score:
                     self.now = time.perf_counter()
                     # skip saving checkpoint, no PSNR improvement
                     continue
 
-                ckpt.f1_score = f1
+                ckpt.score = score
                 ckpt_mgr.save()
 
                 self.now = time.perf_counter()
@@ -129,13 +127,12 @@ class Trainer:
     def evaluate(self, dataset, save_result=False, checkpoint_dir='', post_process=False):
         model = self.checkpoint.model
         runtime_values = []
-        evaluator = CarousellEvaluation(num_classes=len(self.class_mapping.keys()), class_mapping=self.class_mapping)
+        evaluator = CatEvaluation(num_classes=len(self.class_mapping.keys()), class_mapping=self.class_mapping)
         for image, labels in dataset:
             start_time = time.perf_counter()
             prediction = model(image)
             runtime = (time.perf_counter() - start_time) * 1000
             results = tf.math.argmax(prediction, axis=-1)
-            # print("results", tf.shape(results), "labels", tf.shape(labels))
             evaluator.add_single_result(labels, results)
             runtime_values.append(runtime)
         overall_f1_score = evaluator.evaluate()
@@ -164,7 +161,35 @@ class Trainer:
             print(f'Model restored from checkpoint at step {self.checkpoint.step.numpy()}.')
 
 
+class PriceTrainer(Trainer):
+    def evaluate(self, dataset, save_result=False, checkpoint_dir='', post_process=False):
+        model = self.checkpoint.model
+        runtime_values = []
+        evaluator = PriceEvaluation()
+        for image, labels in dataset:
+            start_time = time.perf_counter()
+            predictions = model(image)
+            predictions = tf.squeeze(predictions)
+            runtime = (time.perf_counter() - start_time) * 1000
+            evaluator.add_single_result(labels, predictions)
+            runtime_values.append(runtime)
+        mae_score = evaluator.evaluate()
+        avg_runtime = tf.reduce_mean(runtime_values[1:]) if len(runtime_values) > 1 else tf.reduce_mean(
+            runtime_values)
+        return mae_score, avg_runtime
 
+    def predict(self, dataset, save_result=False, checkpoint_dir='', post_process=False):
+        # /online code
+        model = self.checkpoint.model
+        runtime_values = []
+        for image, labels in dataset:
+            start_time = time.perf_counter()
+            prediction = model(image)
+            runtime = (time.perf_counter() - start_time) * 1000
+            runtime_values.append(runtime)
+        avg_runtime = tf.reduce_mean(runtime_values[1:]) if len(runtime_values) > 1 else tf.reduce_mean(
+            runtime_values)
+        return avg_runtime
 
 
 
