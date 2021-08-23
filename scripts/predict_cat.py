@@ -40,7 +40,7 @@ for img_path in img_paths:
     x = np.expand_dims(x, axis=0)
     preds = predicter.predict(x)
     result = tf.math.argmax(preds, axis=-1)
-    results.append(result[0].numpy())
+    results.append(result[0].numpy()+1)
 eval_df["category_id"] = results
 eval_df[original_columns].to_csv("submission/eval-category.csv", index=False)
 print(eval_df.head())
