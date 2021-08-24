@@ -99,10 +99,10 @@ class Trainer:
                     tf.summary.scalar(self.metrics_name, score, step=step/106)
                     tf.summary.scalar('runtime', runtime_value, step=step/106)
 
-                if save_best_only and score <= ckpt.score:
-                    self.now = time.perf_counter()
-                    # skip saving checkpoint, no PSNR improvement
-                    continue
+                # if save_best_only and score <= ckpt.score:
+                #     self.now = time.perf_counter()
+                #     # skip saving checkpoint since no improvement
+                #     continue
 
                 ckpt.score = score
                 ckpt_mgr.save()
@@ -157,6 +157,7 @@ class Trainer:
 
     def restore(self):
         if self.checkpoint_manager.latest_checkpoint:
+            print(f"Detected latest checkpoint: {self.checkpoint_manager.latest_checkpoint}")
             self.checkpoint.restore(self.checkpoint_manager.latest_checkpoint).expect_partial()
             print(f'Model restored from checkpoint at step {self.checkpoint.step.numpy()}.')
 
